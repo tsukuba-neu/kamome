@@ -1,17 +1,21 @@
 {
-  "name": "kozakana",
+  "name": "@tsukuba-neu/kozakana",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Discord-to-Google Calendar sync tool",
+  "main": "src/main.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "vite build"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "type": "module",
+  "private": true,
   "devDependencies": {
+    "@google/clasp": "3.2.0",
+    "@types/google-apps-script": "2.0.8",
     "rollup-plugin-google-apps-script": "2.0.2",
+    "typescript": "5.9.3",
     "vite": "4.5.14"
   }
 }

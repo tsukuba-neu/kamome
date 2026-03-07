@@ -2,7 +2,13 @@ import { defineConfig } from "vite";
 import googleAppsScript from "rollup-plugin-google-apps-script";
 
 export default defineConfig({
-  plugins: [googleAppsScript()],
+  plugins: [
+    googleAppsScript({
+      manifest: {
+        copy: true,
+      },
+    }),
+  ],
   build: {
     rollupOptions: {
       input: "src/main.ts",
@@ -11,5 +17,6 @@ export default defineConfig({
         entryFileNames: "code.js",
       },
     },
+    minify: false,
   },
 });
