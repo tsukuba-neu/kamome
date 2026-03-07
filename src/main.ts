@@ -10,7 +10,7 @@ import {
   extractSourceUrl,
 } from "./services/calendar";
 import { setLastRunTime } from "./config";
-import { formatDate, formatTime } from "./utils/date";
+import { formatDate } from "./utils/date";
 
 declare const global: {
   syncDiscordEventsToCalendar: () => void;
@@ -80,12 +80,15 @@ global.sendDailyReminders = function (): void {
   }
 
   // リマインドメッセージを構築
-  const dateStr = formatDate(targetDate);
+  const dateStr = formatDate(
+    targetDate,
+    `[${formatDate(targetDate, "YYMMDD")}](https://scrapbox.io/neu/${formatDate(targetDate, "YYMMDD")})${formatDate(targetDate, "W")}`,
+  );
   const eventList = events
     .map((e) => {
       const time = e.isAllDayEvent()
         ? "☀️ "
-        : formatTime(e.getStartTime() as unknown as Date);
+        : formatDate(e.getStartTime(), "HH:mm");
       const location = e.getLocation();
       const locationStr = location ? ` @ ${location}` : "";
 

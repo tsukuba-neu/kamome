@@ -1,22 +1,19 @@
-const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+export function formatDate(
+  date: Date | GoogleAppsScript.Base.Date,
+  format: string,
+): string {
+  const map: { [key: string]: string } = {
+    YYYY: date.getFullYear().toString(),
+    YY: date.getFullYear().toString().slice(-2),
+    MM: (date.getMonth() + 1).toString().padStart(2, "0"),
+    DD: date.getDate().toString().padStart(2, "0"),
+    HH: date.getHours().toString().padStart(2, "0"),
+    mm: date.getMinutes().toString().padStart(2, "0"),
+    ss: date.getSeconds().toString().padStart(2, "0"),
+    W: "日月火水木金土".charAt(date.getDay()),
+  };
 
-/**
- * 日付を "M/D(曜日)" 形式にフォーマット
- */
-export function formatDate(date: Date): string {
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const weekday = WEEKDAYS[date.getDay()];
-  return `${month}/${day}(${weekday})`;
-}
-
-/**
- * 時刻を "HH:MM" 形式にフォーマット
- */
-export function formatTime(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
+  return format.replace(/YYYY|YY|MM|DD|HH|mm|ss|W/g, (matched) => map[matched]);
 }
 
 /**
