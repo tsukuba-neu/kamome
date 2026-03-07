@@ -1,0 +1,17 @@
+{
+  "name": "kozakana",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "rollup-plugin-google-apps-script": "2.0.2",
+    "vite": "4.5.14"
+  }
+}
