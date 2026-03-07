@@ -1,6 +1,10 @@
-import { fetchMessages, postToWebhook } from "./services/discord";
+import { fetchMessages, postToWebhook, addReaction } from "./services/discord";
 import { extractEvents } from "./services/gemini";
-import { syncEvents, getEventsForDate } from "./services/calendar";
+import {
+  syncEvents,
+  getEventsForDate,
+  extractSourceUrl,
+} from "./services/calendar";
 import { setLastRunTime } from "./config";
 import { formatDate, formatTime } from "./utils/date";
 
@@ -16,7 +20,7 @@ declare const global: {
 global.syncDiscordEventsToCalendar = function (): void {
   console.log("Starting Discord to Calendar sync...");
 
-  // 1. Discordからメッセージ取得（ボットは除外済み）
+  // 1. Discordからメッセージ取得
   const messages = fetchMessages();
   console.log(`Fetched ${messages.length} messages`);
 
@@ -33,9 +37,15 @@ global.syncDiscordEventsToCalendar = function (): void {
   // 3. カレンダーに同期
   if (events.length > 0) {
     syncEvents(events);
+
+    // 4. イベントが抽出されたメッセージに+1リアクションを追加
+    const processedMessageIds = new Set(events.map((e) => e.sourceMessage.id));
+    for (const messageId of processedMessageIds) {
+      addReaction(messageId, "👍");
+    }
   }
 
-  // 4. 最終実行時刻を更新
+  // 5. 最終実行時刻を更新
   setLastRunTime(new Date());
 
   console.log("Sync completed");
@@ -68,14 +78,23 @@ global.sendDailyReminders = function (): void {
   const dateStr = formatDate(targetDate);
   const eventList = events
     .map((e) => {
-      const time = formatTime(e.getStartTime() as unknown as Date);
+      const time = e.isAllDayEvent()
+        ? "☀️ "
+        : formatTime(e.getStartTime() as unknown as Date);
       const location = e.getLocation();
       const locationStr = location ? ` @ ${location}` : "";
-      return `- ${time} ${e.getTitle()}${locationStr}`;
+
+      // Extract source URL from description
+      const sourceUrl = extractSourceUrl(e.getDescription());
+      const titleString = sourceUrl
+        ? ` [${e.getTitle()}](${sourceUrl})`
+        : e.getTitle();
+
+      return `- ${time} ${titleString}${locationStr}`;
     })
     .join("\n");
 
-  const message = `**${dateStr}の予定**\n${eventList}`;
+  const message = `## 📆 ${dateStr}\n${eventList}`;
 
   postToWebhook(message);
   console.log("Reminders sent");

@@ -10,6 +10,21 @@ export interface Event {
 }
 
 /**
+ * 元メッセージ情報を含むイベント（カレンダー同期用）
+ */
+export interface EventWithSource extends Event {
+  sourceMessage: DiscordMessage;
+  sourceMessageUrl?: string;
+}
+
+/**
+ * Geminiから返されるイベント（messageIndex付き）
+ */
+export interface ExtractedEvent extends Event {
+  messageIndex: number;
+}
+
+/**
  * Discord APIのメッセージオブジェクト（v10準拠）
  */
 export interface DiscordMessage {
@@ -20,6 +35,9 @@ export interface DiscordMessage {
     username: string;
     bot?: boolean;
   };
+  message_snapshots: {
+    message: Pick<DiscordMessage, "id" | "content" | "timestamp">;
+  }[];
   timestamp: string; // ISO 8601形式
 }
 
@@ -45,7 +63,7 @@ export interface GeminiResponse {
         functionCall?: {
           name: string;
           args: {
-            events: Event[];
+            events: ExtractedEvent[];
           };
         };
       }>;

@@ -2,6 +2,39 @@ import type { DiscordMessage } from "../types";
 import { getConfig, getLastRunTime } from "../config";
 
 /**
+ * チャンネル情報からguild_idを取得
+ */
+export function fetchGuildId(): string | null {
+  const config = getConfig();
+  const url = `${config.discordProxyUrl}/v10/channels/${config.scheduleChannelId}`;
+
+  try {
+    const idToken = ScriptApp.getIdentityToken();
+
+    const response = UrlFetchApp.fetch(url, {
+      method: "get",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+        "Discord-Authorization": `Bot ${config.discordBotToken}`,
+      },
+      muteHttpExceptions: true,
+    });
+
+    if (response.getResponseCode() !== 200) {
+      console.log(`Failed to fetch channel info: ${response.getContentText()}`);
+      return null;
+    }
+
+    const channel = JSON.parse(response.getContentText());
+    return channel.guild_id ?? null;
+  } catch (error) {
+    console.log(`Failed to fetch guild ID: ${error}`);
+    return null;
+  }
+}
+
+/**
  * LAST_RUN_TIME以降のメッセージをプロキシ経由で取得
  * ボットメッセージは除外
  */
@@ -72,5 +105,46 @@ export function postToWebhook(content: string): void {
     });
   } catch (error) {
     console.log(`Failed to post to webhook: ${error}`);
+  }
+}
+
+/**
+ * メッセージにリアクションを追加
+ * Discord API: PUT /channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me
+ */
+export function addReaction(messageId: string, emoji: string): boolean {
+  const config = getConfig();
+
+  // URL-encode the emoji
+  const encodedEmoji = encodeURIComponent(emoji);
+
+  const url = `${config.discordProxyUrl}/v10/channels/${config.scheduleChannelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`;
+
+  try {
+    const idToken = ScriptApp.getIdentityToken();
+
+    const response = UrlFetchApp.fetch(url, {
+      method: "put",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+        "Discord-Authorization": `Bot ${config.discordBotToken}`,
+      },
+      muteHttpExceptions: true,
+    });
+
+    // Discord returns 204 No Content on success
+    if (response.getResponseCode() === 204) {
+      console.log(`Added reaction ${emoji} to message ${messageId}`);
+      return true;
+    } else {
+      console.log(
+        `Failed to add reaction: ${response.getResponseCode()} ${response.getContentText()}`,
+      );
+      return false;
+    }
+  } catch (error) {
+    console.log(`Failed to add reaction to message ${messageId}: ${error}`);
+    return false;
   }
 }
