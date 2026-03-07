@@ -53,7 +53,7 @@ Google Apps ScriptからDiscord APIを呼び出すには、何らかのプロキ
 
 Discord API 呼び出し（投稿・リアクション付与）に使う Bot トークン。
 
-- 例: `Bot xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+- 例: `h0AxnZuR16jkKLxzsI7qZnfcs2ZIAsXnN2sqzRHBxSkLlznrdFcuygesjgJTf`
 
 ### `SOURCE_CHANNEL_ID`
 
