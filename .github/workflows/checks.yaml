@@ -2,11 +2,13 @@ on:
   push:
     branches:
       - dev
+      - 'renovate/*'
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !startsWith(github.ref, 'renovate/')
     steps:
       - uses: actions/checkout@v6
       - name: Set up Node.js
