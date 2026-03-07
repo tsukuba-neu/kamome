@@ -4,17 +4,29 @@
   "description": "Discord-to-Google Calendar sync tool",
   "main": "src/main.ts",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "postinstall": "simple-git-hooks"
   },
   "keywords": [],
-  "author": "",
+  "author": "Kazumi Inada a.k.a. Utage <hello@nandenjin.com>",
   "license": "MIT",
   "type": "module",
   "private": true,
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,md,yaml,yml,json}": [
+      "prettier --write"
+    ]
+  },
   "devDependencies": {
     "@google/clasp": "3.2.0",
     "@types/google-apps-script": "2.0.8",
+    "lint-staged": "16.3.2",
+    "prettier": "3.8.1",
     "rollup-plugin-google-apps-script": "2.0.2",
+    "simple-git-hooks": "2.13.1",
     "typescript": "5.9.3",
     "vite": "4.5.14"
   }
