@@ -18,10 +18,12 @@ export interface EventWithSource extends Event {
 }
 
 /**
- * Geminiから返されるイベント（messageIndex付き）
+ * Geminiの重複判定結果
  */
-export interface ExtractedEvent extends Event {
-  messageIndex: number;
+export interface DuplicateJudgement {
+  isDuplicate: boolean;
+  duplicateIndex?: number;
+  reason?: string;
 }
 
 /**
@@ -63,7 +65,7 @@ export interface GeminiResponse {
         functionCall?: {
           name: string;
           args: {
-            events: ExtractedEvent[];
+            events: Event[];
           };
         };
       }>;

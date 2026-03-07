@@ -1,6 +1,7 @@
-import type { EventWithSource } from "../types";
+import type { Event, EventWithSource } from "../types";
 import { getConfig } from "../config";
 import { getDayStart, getDayEnd } from "../utils/date";
+import { isDuplicateEventByGemini } from "./gemini";
 
 /**
  * 元メッセージURLを含む説明欄を構築
@@ -47,13 +48,34 @@ export function syncEvents(events: EventWithSource[]): void {
     return;
   }
 
+  const dayEventsCache = new Map<
+    string,
+    GoogleAppsScript.Calendar.CalendarEvent[]
+  >();
+
   for (const event of events) {
     try {
       const startTime = new Date(event.startTime);
       const endTime = new Date(event.endTime);
+      const dayStart = getDayStart(startTime);
+      const dayEnd = getDayEnd(startTime);
+      const dayKey = dayStart.toISOString();
 
-      // 重複チェック: 同日の開始時刻とタイトルが一致する場合スキップ
-      if (isDuplicate(calendar, event.title, startTime)) {
+      if (!dayEventsCache.has(dayKey)) {
+        dayEventsCache.set(dayKey, calendar.getEvents(dayStart, dayEnd));
+      }
+
+      const existingEvents = dayEventsCache.get(dayKey) ?? [];
+      const existingCandidates: Event[] = existingEvents.map((e) => ({
+        title: e.getTitle(),
+        startTime: e.getStartTime().toISOString(),
+        endTime: e.getEndTime().toISOString(),
+        location: e.getLocation() || undefined,
+        description: e.getDescription() || undefined,
+      }));
+
+      // Geminiによる重複チェック
+      if (isDuplicateEventByGemini(event, existingCandidates)) {
         console.log(`Skipping duplicate event: ${event.title}`);
         continue;
       }
@@ -76,30 +98,12 @@ export function syncEvents(events: EventWithSource[]): void {
       console.log(
         `Created event: ${event.title} (${startTime.toISOString()}-${endTime.toISOString()}) [https://www.google.com/calendar/event?eid=${calendarEvent.getId()}]`,
       );
+
+      existingEvents.push(calendarEvent);
     } catch (error) {
       console.log(`Failed to create event "${event.title}": ${error}`);
     }
   }
-}
-
-/**
- * 重複チェック
- */
-function isDuplicate(
-  calendar: GoogleAppsScript.Calendar.Calendar,
-  title: string,
-  startTime: Date,
-): boolean {
-  const dayStart = getDayStart(startTime);
-  const dayEnd = getDayEnd(startTime);
-
-  const existingEvents = calendar.getEvents(dayStart, dayEnd);
-
-  return existingEvents.some((e) => {
-    const sameTitle = e.getTitle() === title;
-    const sameStartTime = e.getStartTime().getTime() === startTime.getTime();
-    return sameTitle && sameStartTime;
-  });
 }
 
 /**

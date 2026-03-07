@@ -45,7 +45,8 @@ global.syncDiscordEventsToCalendar = function (): void {
     // 4. イベントが抽出されたメッセージに+1リアクションを追加
     const processedMessageIds = new Set(events.map((e) => e.sourceMessage.id));
     for (const messageId of processedMessageIds) {
-      addReaction(messageId, "🐟️");
+      addReaction(messageId, "👍");
+      addReaction(messageId, "🐟");
     }
   }
 
