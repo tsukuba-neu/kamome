@@ -184,7 +184,7 @@ export function extractEvents(messages: DiscordMessage[]): EventWithSource[] {
           sourceMessageUrl: guildId
             ? buildMessageUrl(
                 guildId,
-                config.scheduleChannelId,
+                config.sourceChannelId,
                 sourceMessage.id,
               )
             : undefined,

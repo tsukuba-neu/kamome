@@ -1,4 +1,8 @@
-import { fetchMessages, postToWebhook, addReaction } from "./services/discord";
+import {
+  fetchMessages,
+  postMessageToChannel,
+  addReaction,
+} from "./services/discord";
 import { extractEvents } from "./services/gemini";
 import {
   syncEvents,
@@ -41,7 +45,7 @@ global.syncDiscordEventsToCalendar = function (): void {
     // 4. イベントが抽出されたメッセージに+1リアクションを追加
     const processedMessageIds = new Set(events.map((e) => e.sourceMessage.id));
     for (const messageId of processedMessageIds) {
-      addReaction(messageId, "👍");
+      addReaction(messageId, "🐟️");
     }
   }
 
@@ -96,6 +100,8 @@ global.sendDailyReminders = function (): void {
 
   const message = `## 📆 ${dateStr}\n${eventList}`;
 
-  postToWebhook(message);
-  console.log("Reminders sent");
+  const isSent = postMessageToChannel(message);
+  if (isSent) {
+    console.log("Reminders sent");
+  }
 };

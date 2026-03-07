@@ -47,8 +47,8 @@ export interface DiscordMessage {
 export interface AppConfig {
   discordProxyUrl: string;
   discordBotToken: string;
-  scheduleChannelId: string;
-  remindWebhookUrl: string;
+  sourceChannelId: string;
+  notificationChannelId: string;
   calendarId: string;
   geminiApiKey: string;
 }

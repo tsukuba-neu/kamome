@@ -6,7 +6,7 @@ import { getConfig, getLastRunTime } from "../config";
  */
 export function fetchGuildId(): string | null {
   const config = getConfig();
-  const url = `${config.discordProxyUrl}/v10/channels/${config.scheduleChannelId}`;
+  const url = `${config.discordProxyUrl}/v10/channels/${config.sourceChannelId}`;
 
   try {
     const idToken = ScriptApp.getIdentityToken();
@@ -48,7 +48,7 @@ export function fetchMessages(): DiscordMessage[] {
   }
 
   // プロキシURL構築: https://{host}/v10/channels/{channelId}/messages
-  const url = `${config.discordProxyUrl}/v10/channels/${config.scheduleChannelId}/messages`;
+  const url = `${config.discordProxyUrl}/v10/channels/${config.sourceChannelId}/messages`;
 
   try {
     // Cloud Run認証用のIDトークンを取得
@@ -89,22 +89,37 @@ export function fetchMessages(): DiscordMessage[] {
 }
 
 /**
- * WebhookにメッセージをPOST
+ * Discord API経由でチャンネルにメッセージをPOST
  */
-export function postToWebhook(content: string): void {
+export function postMessageToChannel(content: string): boolean {
   const config = getConfig();
+  const url = `${config.discordProxyUrl}/v10/channels/${config.notificationChannelId}/messages`;
 
   try {
-    UrlFetchApp.fetch(config.remindWebhookUrl, {
+    const idToken = ScriptApp.getIdentityToken();
+
+    const response = UrlFetchApp.fetch(url, {
       method: "post",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+        "Discord-Authorization": `Bot ${config.discordBotToken}`,
       },
       payload: JSON.stringify({ content }),
       muteHttpExceptions: true,
     });
+
+    if (response.getResponseCode() === 200) {
+      return true;
+    }
+
+    console.log(
+      `Failed to post message: ${response.getResponseCode()} ${response.getContentText()}`,
+    );
+    return false;
   } catch (error) {
-    console.log(`Failed to post to webhook: ${error}`);
+    console.log(`Failed to post message to Discord: ${error}`);
+    return false;
   }
 }
 
@@ -118,7 +133,7 @@ export function addReaction(messageId: string, emoji: string): boolean {
   // URL-encode the emoji
   const encodedEmoji = encodeURIComponent(emoji);
 
-  const url = `${config.discordProxyUrl}/v10/channels/${config.scheduleChannelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`;
+  const url = `${config.discordProxyUrl}/v10/channels/${config.sourceChannelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`;
 
   try {
     const idToken = ScriptApp.getIdentityToken();

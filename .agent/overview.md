@@ -2,15 +2,15 @@
 
 ## 1. プロジェクト概要
 
-Discordの特定チャンネルからイベント情報を取得し、Gemini API（LLM）で構造化データに変換してGoogleカレンダーに登録、およびWebhookでの定期リマインドを行うシステムを構築してください。
+Discordの特定チャンネルからイベント情報を取得し、Gemini API（LLM）で構造化データに変換してGoogleカレンダーに登録、およびDiscord REST APIでの定期リマインドを行うシステムを構築してください。
 
 ## 2. 環境構成と設定 (PropertiesService)
 
 以下の設定値を `PropertiesService` から取得・管理する共通クラス/モジュールを作成してください。
 
 - `DISCORD_PROXY_URL`: Discord API用プロキシエンドポイント
-- `SCHEDULE_CHANNEL_ID`: 監視対象のチャンネルID
-- `REMIND_WEBHOOK_URL`: リマインド投稿用Webhook URL
+- `SOURCE_CHANNEL_ID`: 監視対象のチャンネルID
+- `NOTIFICATION_CHANNEL_ID`: リマインド投稿先チャンネルID
 - `CALENDAR_ID`: 登録先GoogleカレンダーID
 - `LAST_RUN_TIME`: 前回実行時の最終メッセージ取得日時（ISO 8601形式）
 - `GEMINI_API_KEY`: Google AI StudioのAPIキー
@@ -21,7 +21,7 @@ Discordの特定チャンネルからイベント情報を取得し、Gemini API
 
 - `fetchMessages()`: `LAST_RUN_TIME` 以降のメッセージをプロキシ経由で取得。
 - **フィルタリング:** `author.bot === true` のメッセージはループ防止のため、必ず除外すること。
-- `postToWebhook(content: string)`: 指定されたWebhook URLへリマインド内容を送信。
+- `postMessageToChannel(content: string)`: Discord REST APIでリマインド内容を送信。
 
 ### B. Gemini APIによる解析 (`gemini.ts`)
 
@@ -54,7 +54,7 @@ Discordの特定チャンネルからイベント情報を取得し、Gemini API
 
 2. 対象日のイベントをカレンダーから全取得。
 3. リマインド用テキスト（タイトル、時間、場所など）に整形。
-4. Webhookを通じてDiscordへ投稿。
+4. Discord REST API経由でチャンネルへ投稿。
 
 ## 5. 技術的制約・開発スタイル
 

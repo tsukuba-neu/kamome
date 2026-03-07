@@ -3,8 +3,8 @@ import type { AppConfig } from "../types";
 const PROPERTY_KEYS = {
   DISCORD_PROXY_URL: "DISCORD_PROXY_URL",
   DISCORD_BOT_TOKEN: "DISCORD_BOT_TOKEN",
-  SCHEDULE_CHANNEL_ID: "SCHEDULE_CHANNEL_ID",
-  REMIND_WEBHOOK_URL: "REMIND_WEBHOOK_URL",
+  SOURCE_CHANNEL_ID: "SOURCE_CHANNEL_ID",
+  NOTIFICATION_CHANNEL_ID: "NOTIFICATION_CHANNEL_ID",
   CALENDAR_ID: "CALENDAR_ID",
   LAST_RUN_TIME: "LAST_RUN_TIME",
   GEMINI_API_KEY: "GEMINI_API_KEY",
@@ -18,10 +18,9 @@ export function getConfig(): AppConfig {
   return {
     discordProxyUrl: props.getProperty(PROPERTY_KEYS.DISCORD_PROXY_URL) ?? "",
     discordBotToken: props.getProperty(PROPERTY_KEYS.DISCORD_BOT_TOKEN) ?? "",
-    scheduleChannelId:
-      props.getProperty(PROPERTY_KEYS.SCHEDULE_CHANNEL_ID) ?? "",
-    remindWebhookUrl:
-      props.getProperty(PROPERTY_KEYS.REMIND_WEBHOOK_URL) ?? "",
+    sourceChannelId: props.getProperty(PROPERTY_KEYS.SOURCE_CHANNEL_ID) ?? "",
+    notificationChannelId:
+      props.getProperty(PROPERTY_KEYS.NOTIFICATION_CHANNEL_ID) ?? "",
     calendarId: props.getProperty(PROPERTY_KEYS.CALENDAR_ID) ?? "",
     geminiApiKey: props.getProperty(PROPERTY_KEYS.GEMINI_API_KEY) ?? "",
   };
