@@ -2,6 +2,7 @@ import type { Event, EventWithSource } from "../types";
 import { getConfig } from "../config";
 import { getDayStart, getDayEnd } from "../utils/date";
 import { isDuplicateEventByGemini } from "./gemini";
+import { fetchGuildId } from "./discord";
 
 /**
  * 元メッセージURLを含む説明欄を構築
@@ -31,9 +32,23 @@ export function extractSourceUrl(description: string | null): string | null {
   if (!description) return null;
 
   const match = description.match(
-    /Source: (https:\/\/discord\.com\/channels\/\d+\/\d+\/\d+)/,
+    /https:\/\/discord\.com\/channels\/(\d+)\/\d+\/\d+/,
   );
-  return match ? match[1] : null;
+
+  // Guild IDが異なる場合は無効とする
+  if (match) {
+    const config = getConfig();
+    const guildId = match[1];
+    const expectedGuildId = fetchGuildId();
+    if (guildId !== expectedGuildId) {
+      console.log(
+        `Guild ID mismatch: expected ${expectedGuildId}, got ${guildId}`,
+      );
+      return null;
+    }
+    return match[0];
+  }
+  return null;
 }
 
 /**
