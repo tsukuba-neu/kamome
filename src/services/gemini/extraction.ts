@@ -9,6 +9,7 @@ If no events are found, call the function with an empty array.
 If duration of the event is not specified, follow these rules:
 - a single date without time, assume as 9:00 - 21:00.
 - a single date with time, assume a default duration of 3 hours.
+If no year is specified for an event date, infer the year from the message's "Posted at" timestamp: use the same year as the posted date, unless that would place the event before the posted date, in which case use the following year.
 
 Message:
 `;
