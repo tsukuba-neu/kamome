@@ -11,6 +11,7 @@ import {
 } from "./services/calendar";
 import { setLastRunTime } from "./config";
 import { formatDate } from "./utils/date";
+import { removeEmoji } from "./utils/string";
 
 declare const global: {
   syncDiscordEventsToCalendar: () => void;
@@ -90,15 +91,14 @@ global.sendDailyReminders = function (): void {
         ? "☀️ "
         : formatDate(e.getStartTime(), "HH:mm");
       const location = e.getLocation();
-      const locationStr = location ? ` @ ${location}` : "";
+      const locationStr = location ? `@ ${location}` : "";
 
       // Extract source URL from description
       const sourceUrl = extractSourceUrl(e.getDescription());
-      const titleString = sourceUrl
-        ? ` [${e.getTitle()}](${sourceUrl})`
-        : e.getTitle();
+      const title = removeEmoji(e.getTitle()).trim() || e.getTitle();
+      const titleString = sourceUrl ? `[${title}](${sourceUrl})` : title;
 
-      return `- ${time} ${titleString}${locationStr}`;
+      return `- ${time} ${titleString} ${locationStr}`;
     })
     .join("\n");
 
