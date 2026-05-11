@@ -1,5 +1,5 @@
 {
-  "name": "@tsukuba-neu/kozakana",
+  "name": "@tsukuba-neu/kamome",
   "version": "1.0.0",
   "description": "Discord-to-Google Calendar sync tool",
   "main": "src/main.ts",

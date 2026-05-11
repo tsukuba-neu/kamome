@@ -1,6 +1,6 @@
-# 🐟 kozakana
+# 🦢 kamome
 
-![Version](https://img.shields.io/github/package-json/v/tsukuba-neu/kozakana?style=flat-square)
+![Version](https://img.shields.io/github/package-json/v/tsukuba-neu/kamome?style=flat-square)
 ![tsukuba-neu](https://img.shields.io/badge/tsukuba-neu-blue?style=flat-square)
 ![Imagine The Future](https://img.shields.io/badge/imagine_the-future-0bf?style=flat-square)
 

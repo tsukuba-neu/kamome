@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-kozakana is a Google Apps Script (GAS) project that syncs events from Discord messages to Google Calendar. It uses Gemini API with Function Calling to extract event information from natural language messages.
+kamome is a Google Apps Script (GAS) project that syncs events from Discord messages to Google Calendar. It uses Gemini API with Function Calling to extract event information from natural language messages.
 
 ## Build & Deploy Commands
 
