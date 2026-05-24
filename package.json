@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@google/clasp": "3.3.0",
-    "@types/google-apps-script": "2.0.8",
+    "@types/google-apps-script": "2.0.9",
     "lint-staged": "17.0.5",
     "prettier": "3.8.3",
     "rollup-plugin-google-apps-script": "2.0.2",
