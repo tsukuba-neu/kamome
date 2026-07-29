@@ -1,22 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "labels": ["dependencies", "renovate"],
-  "rangeStrategy": "pin",
-  "automerge": true,
-  "automergeType": "branch",
-  "lockFileMaintenance": {
-    "enabled": true
-  },
-  "minimumReleaseAge": "3 days",
-  "packageRules": [
-    {
-      "matchUpdateTypes": ["major"],
-      "automerge": false
-    },
-    {
-      "matchDepNames": ["node"],
-      "rangeStrategy": "replace"
-    }
-  ]
+  "extends": ["github>nandenjin/renovate-config"]
 }
