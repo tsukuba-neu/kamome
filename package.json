@@ -24,7 +24,7 @@
     "@google/clasp": "3.4.1",
     "@types/google-apps-script": "2.0.13",
     "lint-staged": "17.5.1",
-    "prettier": "3.9.7",
+    "prettier": "3.9.8",
     "rollup-plugin-google-apps-script": "2.0.2",
     "simple-git-hooks": "2.14.0",
     "typescript": "7.0.2",
