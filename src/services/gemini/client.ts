@@ -1,4 +1,5 @@
 import { getConfig } from "../../config";
+import { fetchWithClassification, TransientError } from "../../utils/errors";
 
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent";
@@ -47,45 +48,40 @@ export function callGeminiFunction<TArgs>(
   requestBody: unknown,
   functionName: string,
   apiErrorPrefix: string,
-): TArgs | null {
+): TArgs {
   const config = getConfig();
 
-  try {
-    const response = UrlFetchApp.fetch(
-      `${GEMINI_API_URL}?key=${config.geminiApiKey}`,
-      {
-        method: "post",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        payload: JSON.stringify(requestBody),
-        muteHttpExceptions: true,
+  const response = fetchWithClassification(
+    `${GEMINI_API_URL}?key=${config.geminiApiKey}`,
+    {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      payload: JSON.stringify(requestBody),
+    },
+    `${apiErrorPrefix} API error`,
+  );
 
-    if (response.getResponseCode() !== 200) {
-      console.log(`${apiErrorPrefix} API error: ${response.getContentText()}`);
-      return null;
-    }
-
-    const data: GeminiFunctionCallResponse<TArgs> = JSON.parse(
-      response.getContentText(),
-    );
-
-    const functionCall = data.candidates
-      ?.flatMap((candidate) => candidate.content?.parts ?? [])
-      .find((part) => part.functionCall?.name === functionName)?.functionCall;
-
-    if (!functionCall) {
-      console.log(
-        `Unexpected response: function call "${functionName}" not found`,
-      );
-      return null;
-    }
-
-    return functionCall.args;
+  let data: GeminiFunctionCallResponse<TArgs>;
+  try {
+    data = JSON.parse(response.getContentText());
   } catch (error) {
-    console.log(`Failed to call Gemini (${functionName}): ${error}`);
-    return null;
+    throw new TransientError(
+      `${apiErrorPrefix}: failed to parse response: ${error}`,
+    );
   }
+
+  const functionCall = data.candidates
+    ?.flatMap((candidate) => candidate.content?.parts ?? [])
+    .find((part) => part.functionCall?.name === functionName)?.functionCall;
+
+  // モデル出力の揺らぎによる欠落は再試行で解消しうるため一時エラーとする
+  if (!functionCall) {
+    throw new TransientError(
+      `${apiErrorPrefix}: function call "${functionName}" not found in response`,
+    );
+  }
+
+  return functionCall.args;
 }

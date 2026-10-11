@@ -1,9 +1,10 @@
 import {
+  fetchGuildId,
   fetchMessages,
   postMessageToChannel,
   addReaction,
 } from "./services/discord";
-import { extractEvents } from "./services/gemini";
+import { extractEventsFromMessage } from "./services/gemini";
 import {
   syncEvents,
   getEventsForDate,
@@ -12,6 +13,7 @@ import {
 import { setLastRunTime } from "./config";
 import { formatDate } from "./utils/date";
 import { removeEmoji } from "./utils/string";
+import { TransientError } from "./utils/errors";
 
 declare const global: {
   syncDiscordEventsToCalendar: () => void;
@@ -19,42 +21,64 @@ declare const global: {
 };
 
 /**
+ * 一時エラーはログのみで正常終了させ、それ以外のエラーは再スローしてGAS実行失敗として報告する
+ */
+function runWithErrorHandling(name: string, fn: () => void): void {
+  try {
+    fn();
+  } catch (error) {
+    if (error instanceof TransientError) {
+      console.warn(`${name} aborted due to transient error: ${error.message}`);
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
  * 定期実行用: DiscordメッセージからイベントをGoogleカレンダーに同期
  * GASトリガーから呼び出される
+ *
+ * メッセージを古い順に1件ずつ処理し、完了したメッセージの投稿時刻まで LAST_RUN_TIME を進める。
+ * 途中で失敗した場合、未完了のメッセージは次回実行時に再試行される。
  */
 global.syncDiscordEventsToCalendar = function (): void {
-  console.log("Starting Discord to Calendar sync...");
+  runWithErrorHandling("Sync", () => {
+    console.log("Starting Discord to Calendar sync...");
 
-  // 1. Discordからメッセージ取得
-  const messages = fetchMessages();
-  console.log(`Fetched ${messages.length} messages`);
+    // 1. Discordからメッセージ取得
+    const messages = fetchMessages();
+    console.log(`Fetched ${messages.length} messages`);
 
-  if (messages.length === 0) {
-    console.log("No new messages to process");
-    setLastRunTime(new Date());
-    return;
-  }
-
-  // 2. Geminiでイベント抽出
-  const events = extractEvents(messages);
-  console.log(`Extracted ${events.length} events`);
-
-  // 3. カレンダーに同期
-  if (events.length > 0) {
-    syncEvents(events);
-
-    // 4. イベントが抽出されたメッセージに+1リアクションを追加
-    const processedMessageIds = new Set(events.map((e) => e.sourceMessage.id));
-    for (const messageId of processedMessageIds) {
-      addReaction(messageId, "👍");
-      addReaction(messageId, "🦢");
+    if (messages.length === 0) {
+      console.log("No new messages to process");
+      return;
     }
-  }
 
-  // 5. 最終実行時刻を更新
-  setLastRunTime(new Date());
+    const guildId = fetchGuildId();
 
-  console.log("Sync completed");
+    for (const message of messages) {
+      // 2. Geminiでイベント抽出
+      const events = extractEventsFromMessage(message, guildId);
+      console.log(
+        `Extracted ${events.length} events from message ${message.id}`,
+      );
+
+      if (events.length > 0) {
+        // 3. カレンダーに同期
+        syncEvents(events);
+
+        // 4. イベントが抽出されたメッセージにリアクションを追加
+        addReaction(message.id, "👍");
+        addReaction(message.id, "🦢");
+      }
+
+      // 5. 処理済みメッセージの投稿時刻まで最終実行時刻を進める
+      setLastRunTime(new Date(message.timestamp));
+    }
+
+    console.log("Sync completed");
+  });
 };
 
 /**
@@ -62,6 +86,10 @@ global.syncDiscordEventsToCalendar = function (): void {
  * 15:00を境に当日/翌日を判定
  */
 global.sendDailyReminders = function (): void {
+  runWithErrorHandling("Daily reminders", sendDailyRemindersImpl);
+};
+
+function sendDailyRemindersImpl(): void {
   console.log("Starting daily reminders...");
 
   const now = new Date();
@@ -104,8 +132,6 @@ global.sendDailyReminders = function (): void {
 
   const message = `## 📆 ${dateStr}\n${eventList}`;
 
-  const isSent = postMessageToChannel(message);
-  if (isSent) {
-    console.log("Reminders sent");
-  }
-};
+  postMessageToChannel(message);
+  console.log("Reminders sent");
+}

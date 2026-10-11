@@ -74,10 +74,6 @@ Existing events:\n${JSON.stringify(existingEvents.map(toComparableEventPayload),
     "Gemini duplicate check",
   );
 
-  if (!result) {
-    return false;
-  }
-
   if (result.isDuplicate) {
     console.log(
       `Duplicate detected by Gemini: ${targetEvent.title} (${result.reason ?? "no reason"})`,
