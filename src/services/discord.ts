@@ -1,41 +1,53 @@
 import type { DiscordMessage } from "../types";
 import { getConfig, getLastRunTime } from "../config";
+import { fetchWithClassification } from "../utils/errors";
+
+/**
+ * Discordプロキシにリクエストを送信
+ * 失敗時は TransientError（再試行可能）または Error（恒久）を投げる
+ */
+function requestDiscord(
+  method: GoogleAppsScript.URL_Fetch.HttpMethod,
+  path: string,
+  context: string,
+  payload?: unknown,
+): GoogleAppsScript.URL_Fetch.HTTPResponse {
+  const config = getConfig();
+  // Cloud Run認証用のIDトークンを取得
+  const idToken = ScriptApp.getIdentityToken();
+
+  return fetchWithClassification(
+    `${config.discordProxyUrl}${path}`,
+    {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+        "Discord-Authorization": `Bot ${config.discordBotToken}`,
+      },
+      payload: payload === undefined ? undefined : JSON.stringify(payload),
+    },
+    context,
+  );
+}
 
 /**
  * チャンネル情報からguild_idを取得
  */
 export function fetchGuildId(): string | null {
   const config = getConfig();
-  const url = `${config.discordProxyUrl}/v10/channels/${config.sourceChannelId}`;
+  const response = requestDiscord(
+    "get",
+    `/v10/channels/${config.sourceChannelId}`,
+    "Failed to fetch channel info",
+  );
 
-  try {
-    const idToken = ScriptApp.getIdentityToken();
-
-    const response = UrlFetchApp.fetch(url, {
-      method: "get",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-        "Discord-Authorization": `Bot ${config.discordBotToken}`,
-      },
-      muteHttpExceptions: true,
-    });
-
-    if (response.getResponseCode() !== 200) {
-      console.log(`Failed to fetch channel info: ${response.getContentText()}`);
-      return null;
-    }
-
-    const channel = JSON.parse(response.getContentText());
-    return channel.guild_id ?? null;
-  } catch (error) {
-    console.log(`Failed to fetch guild ID: ${error}`);
-    return null;
-  }
+  const channel = JSON.parse(response.getContentText());
+  return channel.guild_id ?? null;
 }
 
 /**
- * LAST_RUN_TIME以降のメッセージをプロキシ経由で取得
+ * LAST_RUN_TIME以降のメッセージをプロキシ経由で取得（古い順）
  * ボットメッセージは除外
  */
 export function fetchMessages(): DiscordMessage[] {
@@ -48,118 +60,50 @@ export function fetchMessages(): DiscordMessage[] {
   }
 
   // プロキシURL構築: https://{host}/v10/channels/{channelId}/messages
-  const url = `${config.discordProxyUrl}/v10/channels/${config.sourceChannelId}/messages`;
+  const response = requestDiscord(
+    "get",
+    `/v10/channels/${config.sourceChannelId}/messages`,
+    "Discord proxy error",
+  );
 
-  try {
-    // Cloud Run認証用のIDトークンを取得
-    const idToken = ScriptApp.getIdentityToken();
+  const messages: DiscordMessage[] = JSON.parse(response.getContentText());
 
-    const response = UrlFetchApp.fetch(url, {
-      method: "get",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-        "Discord-Authorization": `Bot ${config.discordBotToken}`,
-      },
-      muteHttpExceptions: true,
-    });
-
-    if (response.getResponseCode() !== 200) {
-      console.log(`Discord proxy error: ${response.getContentText()}`);
-      return [];
-    }
-
-    const messages: DiscordMessage[] = JSON.parse(response.getContentText());
-
-    // ボットメッセージを除外し、LAST_RUN_TIME以降のメッセージのみ取得
-    return messages.filter((msg) => {
-      if (msg.author.bot) {
-        return false;
-      }
-      if (lastRunTime) {
-        const msgTime = new Date(msg.timestamp);
-        return msgTime > lastRunTime;
-      }
-      return false;
-    });
-  } catch (error) {
-    console.log(`Failed to fetch Discord messages: ${error}`);
-    return [];
-  }
+  // ボットメッセージを除外し、LAST_RUN_TIME以降のメッセージのみ取得
+  return messages
+    .filter((msg) => !msg.author.bot && new Date(msg.timestamp) > lastRunTime)
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
 }
 
 /**
  * Discord API経由でチャンネルにメッセージをPOST
  */
-export function postMessageToChannel(content: string): boolean {
+export function postMessageToChannel(content: string): void {
   const config = getConfig();
-  const url = `${config.discordProxyUrl}/v10/channels/${config.notificationChannelId}/messages`;
-
-  try {
-    const idToken = ScriptApp.getIdentityToken();
-
-    const response = UrlFetchApp.fetch(url, {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-        "Discord-Authorization": `Bot ${config.discordBotToken}`,
-      },
-      payload: JSON.stringify({ content }),
-      muteHttpExceptions: true,
-    });
-
-    if (response.getResponseCode() === 200) {
-      return true;
-    }
-
-    console.log(
-      `Failed to post message: ${response.getResponseCode()} ${response.getContentText()}`,
-    );
-    return false;
-  } catch (error) {
-    console.log(`Failed to post message to Discord: ${error}`);
-    return false;
-  }
+  requestDiscord(
+    "post",
+    `/v10/channels/${config.notificationChannelId}/messages`,
+    "Failed to post message",
+    { content },
+  );
 }
 
 /**
  * メッセージにリアクションを追加
  * Discord API: PUT /channels/{channel_id}/messages/{message_id}/reactions/{emoji}/@me
  */
-export function addReaction(messageId: string, emoji: string): boolean {
+export function addReaction(messageId: string, emoji: string): void {
   const config = getConfig();
 
   // URL-encode the emoji
   const encodedEmoji = encodeURIComponent(emoji);
 
-  const url = `${config.discordProxyUrl}/v10/channels/${config.sourceChannelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`;
-
-  try {
-    const idToken = ScriptApp.getIdentityToken();
-
-    const response = UrlFetchApp.fetch(url, {
-      method: "put",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-        "Discord-Authorization": `Bot ${config.discordBotToken}`,
-      },
-      muteHttpExceptions: true,
-    });
-
-    // Discord returns 204 No Content on success
-    if (response.getResponseCode() === 204) {
-      console.log(`Added reaction ${emoji} to message ${messageId}`);
-      return true;
-    } else {
-      console.log(
-        `Failed to add reaction: ${response.getResponseCode()} ${response.getContentText()}`,
-      );
-      return false;
-    }
-  } catch (error) {
-    console.log(`Failed to add reaction to message ${messageId}: ${error}`);
-    return false;
-  }
+  requestDiscord(
+    "put",
+    `/v10/channels/${config.sourceChannelId}/messages/${messageId}/reactions/${encodedEmoji}/@me`,
+    `Failed to add reaction ${emoji} to message ${messageId}`,
+  );
+  console.log(`Added reaction ${emoji} to message ${messageId}`);
 }

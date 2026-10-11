@@ -1,6 +1,5 @@
 import type { DiscordMessage, Event, EventWithSource } from "../../types";
 import { getConfig } from "../../config";
-import { fetchGuildId } from "../discord";
 import { buildFunctionCallRequest, callGeminiFunction } from "./client";
 
 const EXTRACTION_PROMPT = `Extract event information from the following Discord message.
@@ -90,49 +89,40 @@ function buildExtractionPrompt(message: DiscordMessage): string {
   return EXTRACTION_PROMPT + formatted;
 }
 
-export function extractEvents(messages: DiscordMessage[]): EventWithSource[] {
-  if (messages.length === 0) {
-    return [];
-  }
-
-  const guildId = fetchGuildId();
+/**
+ * 1件のメッセージからイベントを抽出
+ * 失敗時は例外を投げる（呼び出し側で再試行を判断する）
+ */
+export function extractEventsFromMessage(
+  message: DiscordMessage,
+  guildId: string | null,
+): EventWithSource[] {
   const config = getConfig();
-  const extractedEventsWithSource: EventWithSource[] = [];
 
-  for (const message of messages) {
-    const requestBody = buildFunctionCallRequest(
-      buildExtractionPrompt(message),
-      EVENT_EXTRACTION_TOOL,
-    );
+  const requestBody = buildFunctionCallRequest(
+    buildExtractionPrompt(message),
+    EVENT_EXTRACTION_TOOL,
+  );
 
-    const result = callGeminiFunction<RegisterEventsArgs>(
-      requestBody,
-      "register_events",
-      "Gemini extraction",
-    );
+  const result = callGeminiFunction<RegisterEventsArgs>(
+    requestBody,
+    "register_events",
+    "Gemini extraction",
+  );
 
-    if (!result) {
-      continue;
-    }
-
-    const mappedEvents = result.events
-      .filter((event) => event.title && event.startTime && event.endTime)
-      .map(({ title, startTime, endTime, location, description }) => {
-        return {
-          title,
-          startTime,
-          endTime,
-          location,
-          description,
-          sourceMessage: message,
-          sourceMessageUrl: guildId
-            ? buildMessageUrl(guildId, config.sourceChannelId, message.id)
-            : undefined,
-        };
-      });
-
-    extractedEventsWithSource.push(...mappedEvents);
-  }
-
-  return extractedEventsWithSource;
+  return (result.events ?? [])
+    .filter((event) => event.title && event.startTime && event.endTime)
+    .map(({ title, startTime, endTime, location, description }) => {
+      return {
+        title,
+        startTime,
+        endTime,
+        location,
+        description,
+        sourceMessage: message,
+        sourceMessageUrl: guildId
+          ? buildMessageUrl(guildId, config.sourceChannelId, message.id)
+          : undefined,
+      };
+    });
 }

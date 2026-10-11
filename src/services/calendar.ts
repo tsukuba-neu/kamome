@@ -3,6 +3,7 @@ import { getConfig } from "../config";
 import { getDayStart, getDayEnd } from "../utils/date";
 import { isDuplicateEventByGemini } from "./gemini";
 import { fetchGuildId } from "./discord";
+import { TransientError } from "../utils/errors";
 
 /**
  * 元メッセージURLを含む説明欄を構築
@@ -59,8 +60,7 @@ export function syncEvents(events: EventWithSource[]): void {
   const calendar = CalendarApp.getCalendarById(config.calendarId);
 
   if (!calendar) {
-    console.log(`Calendar not found: ${config.calendarId}`);
-    return;
+    throw new Error(`Calendar not found: ${config.calendarId}`);
   }
 
   const dayEventsCache = new Map<
@@ -69,55 +69,59 @@ export function syncEvents(events: EventWithSource[]): void {
   >();
 
   for (const event of events) {
-    try {
-      const startTime = new Date(event.startTime);
-      const endTime = new Date(event.endTime);
-      const dayStart = getDayStart(startTime);
-      const dayEnd = getDayEnd(startTime);
-      const dayKey = dayStart.toISOString();
-
-      if (!dayEventsCache.has(dayKey)) {
-        dayEventsCache.set(dayKey, calendar.getEvents(dayStart, dayEnd));
-      }
-
-      const existingEvents = dayEventsCache.get(dayKey) ?? [];
-      const existingCandidates: Event[] = existingEvents.map((e) => ({
-        title: e.getTitle(),
-        startTime: e.getStartTime().toISOString(),
-        endTime: e.getEndTime().toISOString(),
-        location: e.getLocation() || undefined,
-        description: e.getDescription() || undefined,
-      }));
-
-      // Geminiによる重複チェック
-      if (isDuplicateEventByGemini(event, existingCandidates)) {
-        console.log(`Skipping duplicate event: ${event.title}`);
-        continue;
-      }
-
-      // Build description with source link
-      const description = buildDescription(event);
-
-      // イベント作成
-      const calendarEvent = calendar.createEvent(
-        event.title,
-        startTime,
-        endTime,
-        {
-          location: event.location ?? undefined,
-          description: description,
-        },
-      );
-
-      // Enhanced logging with start/end times
+    const startTime = new Date(event.startTime);
+    const endTime = new Date(event.endTime);
+    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
       console.log(
-        `Created event: ${event.title} (${startTime.toISOString()}-${endTime.toISOString()}) [https://www.google.com/calendar/event?eid=${calendarEvent.getId()}]`,
+        `Skipping event with invalid time: ${event.title} (${event.startTime} - ${event.endTime})`,
       );
-
-      existingEvents.push(calendarEvent);
-    } catch (error) {
-      console.log(`Failed to create event "${event.title}": ${error}`);
+      continue;
     }
+    const dayStart = getDayStart(startTime);
+    const dayEnd = getDayEnd(startTime);
+    const dayKey = dayStart.toISOString();
+
+    if (!dayEventsCache.has(dayKey)) {
+      dayEventsCache.set(dayKey, calendar.getEvents(dayStart, dayEnd));
+    }
+
+    const existingEvents = dayEventsCache.get(dayKey) ?? [];
+    const existingCandidates: Event[] = existingEvents.map((e) => ({
+      title: e.getTitle(),
+      startTime: e.getStartTime().toISOString(),
+      endTime: e.getEndTime().toISOString(),
+      location: e.getLocation() || undefined,
+      description: e.getDescription() || undefined,
+    }));
+
+    // Geminiによる重複チェック
+    if (isDuplicateEventByGemini(event, existingCandidates)) {
+      console.log(`Skipping duplicate event: ${event.title}`);
+      continue;
+    }
+
+    // Build description with source link
+    const description = buildDescription(event);
+
+    // イベント作成（Calendarサービスの失敗は再試行で解消しうるため一時エラーとする）
+    let calendarEvent: GoogleAppsScript.Calendar.CalendarEvent;
+    try {
+      calendarEvent = calendar.createEvent(event.title, startTime, endTime, {
+        location: event.location ?? undefined,
+        description: description,
+      });
+    } catch (error) {
+      throw new TransientError(
+        `Failed to create event "${event.title}": ${error}`,
+      );
+    }
+
+    // Enhanced logging with start/end times
+    console.log(
+      `Created event: ${event.title} (${startTime.toISOString()}-${endTime.toISOString()}) [https://www.google.com/calendar/event?eid=${calendarEvent.getId()}]`,
+    );
+
+    existingEvents.push(calendarEvent);
   }
 }
 
