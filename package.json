@@ -29,5 +29,10 @@
     "simple-git-hooks": "2.14.0",
     "typescript": "7.0.2",
     "vite": "6.4.3"
+  },
+  "overrides": {
+    "rollup-plugin-google-apps-script": {
+      "vite": "$vite"
+    }
   }
 }
