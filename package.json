@@ -28,7 +28,7 @@
     "rollup-plugin-google-apps-script": "2.0.2",
     "simple-git-hooks": "2.14.0",
     "typescript": "7.0.2",
-    "vite": "8.3.2"
+    "vite": "8.3.3"
   },
   "overrides": {
     "rollup-plugin-google-apps-script": {
