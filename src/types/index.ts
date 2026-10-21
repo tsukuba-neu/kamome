@@ -31,6 +31,8 @@ export interface DuplicateJudgement {
  */
 export interface DiscordMessage {
   id: string;
+  /** メッセージ種別（0: 通常, 19: リプライ, 18: スレッド作成通知 など） */
+  type: number;
   content: string;
   author: {
     id: string;
