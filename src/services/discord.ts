@@ -47,8 +47,18 @@ export function fetchGuildId(): string | null {
 }
 
 /**
+ * ユーザーが投稿した内容を持つメッセージ種別
+ * スレッド作成通知（18）やピン留め通知などのシステムメッセージは対象外
+ * https://discord.com/developers/docs/resources/message#message-object-message-types
+ */
+const USER_MESSAGE_TYPES = new Set([
+  0, // DEFAULT
+  19, // REPLY
+]);
+
+/**
  * LAST_RUN_TIME以降のメッセージをプロキシ経由で取得（古い順）
- * ボットメッセージは除外
+ * ボットメッセージとシステムメッセージは除外
  */
 export function fetchMessages(): DiscordMessage[] {
   const config = getConfig();
@@ -68,9 +78,14 @@ export function fetchMessages(): DiscordMessage[] {
 
   const messages: DiscordMessage[] = JSON.parse(response.getContentText());
 
-  // ボットメッセージを除外し、LAST_RUN_TIME以降のメッセージのみ取得
+  // ボット・システムメッセージを除外し、LAST_RUN_TIME以降のメッセージのみ取得
   return messages
-    .filter((msg) => !msg.author.bot && new Date(msg.timestamp) > lastRunTime)
+    .filter(
+      (msg) =>
+        USER_MESSAGE_TYPES.has(msg.type) &&
+        !msg.author.bot &&
+        new Date(msg.timestamp) > lastRunTime,
+    )
     .sort(
       (a, b) =>
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
